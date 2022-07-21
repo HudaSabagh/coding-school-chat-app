@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coding School Chat App</title>
+    <style>
+        body {
+            margin: 0;
+            padding-bottom: 3rem;
+            font-family: Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        .form-wrapper {
+            background-color: rgba(0, 0, 0, 0.246);
+            padding: 0.5rem;
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            height: 4rem;
+            box-sizing: border-box;
+            backdrop-filter: blur(10px);
+        }
+
+        .form-input {
+            border: none;
+            padding: 0 1rem;
+            flex-grow: 1;
+            border-radius: 2rem;
+            margin: 0.5rem;
+        }
+
+        .form-input:focus {
+            outline: none;
+        }
+
+        form > button {
+            background: #444;
+            border: none;
+            padding: 0 1rem;
+            margin: 0.25rem;
+        }
+
+        #messages {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        #messages > li {
+            padding: 0.5rem 1.5rem;
+        }
+
+        #messages > li:nth-child(odd) {
+            background: rgb(241, 192, 192)
+        }
+
+        .min-width-label {
+            display: inline-block;
+            min-width: 100px;
+        }
+
+    </style>
+</head>
+<body>
+    <div style="display: flex;">
+        <ul id="messages" style="flex-grow: 1"></ul>
+        <div>
+            <span>People Online: </span><span id="onlineAmount"></span>
+            <br/>
+            <span>LoggedIn Amount: </span><span id="loggedInAmount"></span>
+            <br/>
+            <span>LoggedIn Users:</span>
+            <br/>
+            <ul id="userList"></ul>
+        </div>
+    </div>
+
+    <form class="form-wrapper">
+
+        <div id="userData">
+            <div>
+                <label for="userColor" class="min-width-label">Color:</label>
+                <input type="color" id="userColor" value="#e66465" />
+            </div>
+            <div>
+                <label for="nickname" class="min-width-label">Nickname:</label>
+                <input id="nickname" placeholder="your nickname" />
+            </div>
+        </div>
+        <button style="margin-right: 5rem" onclick="loginUser(nickname.value)">Login</button>
+        <input class="form-input" autocomplete="off" />
+        <button>Send</button>
+
+    </form>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // our javascript code
+
+        /* todos:
+            - send a message whenever someone connects or disconnects (implemenented)
+            - add support for nicknames (implemented)
+            - functionality to see who is online (implemented)
+            - EXTRA: counter for people online
+        */
+
+        const socket = io();
+        
+        const form = document.querySelector('.form-wrapper') 
+        const input = document.querySelector('.form-input')
+        const chatMessages = document.querySelector('#messages') // our <ul>
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault()
+
+            const nickname = document.getElementById('nickname').value || 'Anonymous'
+            const color = document.getElementById('userColor').value
+
+            const messageData = {
+                nickname,
+                message: input.value,
+                userColor: color
+            }
+            
+            if (input.value) {
+                socket.emit('coding school chat message', messageData);
+                input.value = ""
+            }
+        })
+
+        socket.on('welcome or goodbye', msg => {
+            console.log('works?: ', msg)
+            const li = `<li>${msg}</li>`
+            chatMessages.insertAdjacentHTML('beforeEnd', li)
+        })
+
+        // listen to the custom server events ("server chat message")
+        socket.on('server chat message', (srvData) => {
+            console.log('srvData: ', srvData);
+
+            const li = `
+            <li>
+                <span style="color: ${srvData.userColor}; font-weight: bold;">${srvData.nickname}: </span>
+                ${srvData.message}
+            </li>`
+
+            chatMessages.insertAdjacentHTML('beforeEnd', li)
+            window.scrollTo(0, document.body.scrollHeight); // scroll to latest msg
+        })
+
+        // login a user to see online status
+        function loginUser(userName) {
+            if (userName === '') {
+                alert('username is empty!')
+                return;
+            }
+            socket.emit('login', { loginName: userName })
+        }
+
+        socket.on('loggedIn userNames', usersArray => {
+            console.log('usersArray: ', usersArray)
+            const userList = document.getElementById('userList');
+
+            userList.innerHTML = '';
+
+            usersArray.forEach(userName => {
+                const li = `<li>${userName}</li>`
+                userList.insertAdjacentHTML('beforeEnd', li)
+            })
+
+        })
+
+        socket.on('allUsersAmount', amount => {
+            document.getElementById('onlineAmount').innerText = amount;
+        })
+
+        socket.on('loggedInAmount', amount => {
+            document.getElementById('loggedInAmount').innerText = amount;
+        })
+
+    </script>
+</body>
+</html>
